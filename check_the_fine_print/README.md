@@ -2,15 +2,15 @@
 
 ## Challenge: check_the_fine_print
 
-### Mô tả
+### Description
 
 what? the details matter? but why can't i see them...
 
-### Phân tích
+### Analysic
 
 This challenge about file png, logo of challenge, and our task is find flag in that this picture
 
-### Khai thác
+### Exploit
 
 First, I use common command:
 ```
