@@ -7,59 +7,59 @@ I intercepted a suspicious phone call over the network. something tells me there
 
 1. Recon
 
-File được cho là một .pcap, nên bước đầu tiên là mở bằng Wireshark.
+Challenge given file .pcap, so the first we need open it with wireshark to analysics
 
-Quan sát nhanh thấy:
+We take a look the file and see: 
 
-packet đầu chứa một fake flag
-packet cuối cũng chứa fake flag
-ở giữa là hàng loạt UDP packet trông gần như giống hệt nhau
+the first packet contain fake flag
+and the last packet also contain fake flag
+In the middle we have many UDP packet, it seem similar each other:
 
-Điều này khá đáng nghi vì challenge tên là:
+This is very suspicious beacause the name's challenge is:
 
 voice-in-the-packet
 
-=> nhiều khả năng dữ liệu thật nằm trong audio stream.
+=> I think real data will in audio stream:
 
-2. Xác định giao thức
+2. Decide protocol 
 
-Chọn một packet ở giữa:
+We choose one packet in the middle
 
 Right click -> Decode As -> RTP
 
-Wireshark nhận ra đây là:
+Wireshark realize this is:
 
 RTP payload type 0
 
-tức:
+it means:
 
 PCMU / G.711 μ-law audio
 
-Ngoài ra:
+And one more thing is: 
 
 source port: 10000
 destination port: 20000
 
-=> đây là một VoIP call RTP stream.
+=> This is one VoIP call RTP stream.
 
-3. Kiểm tra stream audio
+3. Check stream audio
 
-Dùng:
+Use:
 
 Telephony -> RTP -> Stream Analysis
 
-hoặc export audio ra .wav.
+or export audio to .wav.
 
-Khi nghe audio thì không có gì đặc biệt.
+When we listen the audio, nothing special.
 
-Điều này gợi ý rằng:
+We can deduce
 
-challenge không yêu cầu nghe nội dung
-dữ liệu có thể được giấu bằng steganography trong audio payload
-4. Phân tích payload RTP
+This challenge don't about listen content:
+Data can be hide by steganography in audio payload
+4. Analysics payload RTP
 
-Viết script đọc RTP payload:
-
+Write script read RTP payload:
+```
 import struct
 
 pcap = "call (1).pcap"
@@ -95,13 +95,13 @@ while o + 16 <= len(data):
         rtp_audio.append(audio)
 
 print(len(rtp_audio))
-
-Kết quả:
+```
+Output:
 
 1000 RTP packets
-5. Tìm pattern bất thường
+5. Find pattern suspicious.
 
-So sánh packet theo chu kỳ:
+Compare packet cyclical:
 
 for i in range(5):
     a = rtp_audio[i]
@@ -115,43 +115,43 @@ for i in range(5):
 
     print(diffs[:10])
 
-Kết quả:
+Output:
 
 (120,121, xor=1)
 (12,13, xor=1)
 (182,183, xor=1)
 ...
 
-Điểm cực kỳ quan trọng:
+Extremely important point:
 
-mọi khác biệt đều XOR = 1
+Every xor each other will equals 1:
 
-Nghĩa là:
+It means:
 
-chỉ có bit thấp nhất (LSB) bị thay đổi
-đây là dấu hiệu rất điển hình của LSB steganography
-6. Quan sát chu kỳ packet
+Only the lowest bit (LSB) is changed:
+This is a very typical sign of LSB steganography
+6. Observe cycle of packet
 
-Payload RTP không random.
+Payload RTP not random.
 
-Nó lặp lại theo chu kỳ:
+It repeat cyclical:
 
-5 packet mẫu
-5 packet mẫu
-5 packet mẫu
+5 packet sample
+5 packet sample
+5 packet sample
 ...
 
-Nhưng các bit thấp nhất của những byte nhất định bị flip.
+But the lowest bits of certain bytes are flipped.
 
-=> attacker đã giấu dữ liệu bằng cách sửa LSB của audio samples.
+=> The attacker hid the data by modifying the LSB of the audio samples.
 
 7. Trích xuất bit ẩn
 
-Sau khi kiểm tra nhiều vị trí byte, nhận ra:
+After check location of byte, we realize:
 
-chỉ cần lấy các byte chẵn:
+We just need take even bytes:
 0,2,4,6,...
-lấy LSB của chúng
+Take LSB of our:
 
 Script:
 
@@ -176,18 +176,17 @@ for i in range(0, len(bitstream), 8):
 
 print(''.join(out))
 
-Kết quả:
+Output:
 
 dGpjdGZ7aDN5X3YwaXBfczczZ19pc180XzdoaW5nfQ==
 
-Đây là Base64.
+This is Base64.
 
 8. Decode Base64
 echo 'dGpjdGZ7aDN5X3YwaXBfczczZ19pc180XzdoaW5nfQ==' | base64 -d
 
-Kết quả:
+Output:
 
 tjctf{h3y_v0ip_s73g_is_4_7hing}
-Flag
-tjctf{h3y_v0ip_s73g_is_4_7hing}
+
 ```
